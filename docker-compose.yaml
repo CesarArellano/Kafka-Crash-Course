@@ -5,16 +5,26 @@ services:
     ports:
       - "9092:9092"
     environment:
+      # Enables KRaft mode, running Kafka without a separate ZooKeeper ensemble
       KAKFA_KRAFT_MODE: 'true'
+      # Unique ID shared by every broker/controller in the cluster; must match across all nodes
       CLUSTER_ID: '1L6g7nGhU-eAKfL--X25wo'
+      # Unique numeric ID identifying this broker/controller instance within the cluster
       KAFKA_NODE_ID: '1'
+      # Roles this node performs in KRaft mode; combined broker+controller for this single-node setup
       KAFKA_PROCESS_ROLES: 'broker,controller'
+      # List of "nodeId@host:port" entries for all controller voters used for leader election
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Replication factor for the internal __consumer_offsets topic; 1 since there's only one broker
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Addresses/ports Kafka binds to inside the container for client (PLAINTEXT) and controller traffic
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # Address clients use to connect from outside the container (e.g. host machine)
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # Names the CONTROLLER listener as the one used for controller-to-controller communication
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
+      # Filesystem path inside the container where Kafka stores its combined KRaft log/metadata
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     volumes:
       - kafka_kraft:/var/lib/kafka/data
