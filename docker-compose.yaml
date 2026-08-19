@@ -4,6 +4,7 @@ services:
     container_name: kafka
     ports:
       - "9092:9092"
+      - "9094:9094"
     environment:
       # Enables KRaft mode, running Kafka without a separate ZooKeeper ensemble
       KAKFA_KRAFT_MODE: 'true'
@@ -17,16 +18,29 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       # Replication factor for the internal __consumer_offsets topic; 1 since there's only one broker
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      # Addresses/ports Kafka binds to inside the container for client (PLAINTEXT) and controller traffic
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      # Address clients use to connect from outside the container (e.g. host machine)
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # Addresses/ports Kafka binds to inside the container: PLAINTEXT for the
+      # basics/dev examples, SASL_PLAINTEXT (SCRAM-SHA-256) for the production
+      # example, and CONTROLLER for KRaft's own traffic
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,SASL_PLAINTEXT://0.0.0.0:9094
+      # Addresses clients use to connect from outside the container (e.g. host machine)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,SASL_PLAINTEXT://localhost:9094
+      # Maps each listener name to the security protocol it speaks
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT
       # Names the CONTROLLER listener as the one used for controller-to-controller communication
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Required once there's more than one non-controller listener to choose from
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Enables SCRAM-SHA-256 on the SASL_PLAINTEXT listener. Credentials are
+      # created after the broker is up (see scripts/generate-production-credentials.sh)
+      # via the AdminClient API, never baked into this file or an image.
+      KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-256
+      KAFKA_OPTS: '-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf'
 
       # Filesystem path inside the container where Kafka stores its combined KRaft log/metadata
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     volumes:
       - kafka_kraft:/var/lib/kafka/data
+      - ./kafka-config/kafka_server_jaas.conf:/etc/kafka/secrets/kafka_server_jaas.conf:ro
 volumes:
   kafka_kraft:

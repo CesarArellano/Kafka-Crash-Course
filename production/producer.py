@@ -9,7 +9,16 @@ import logging
 import os
 import signal
 import uuid
+from pathlib import Path
+
 from confluent_kafka import Producer
+from dotenv import load_dotenv
+
+# APP_ENV picks which .env file to load — see .env.development.example and
+# .env.production.example. .env.production carries real SASL credentials, so
+# it's gitignored; run scripts/generate-production-credentials.sh to create it.
+APP_ENV = os.environ.get("APP_ENV", "development")
+load_dotenv(Path(__file__).resolve().parent.parent / f".env.{APP_ENV}")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("orders-producer")
@@ -29,6 +38,17 @@ producer_config = {
     "linger.ms": 20,
     "compression.type": "lz4",
 }
+
+# Only .env.production sets KAFKA_SECURITY_PROTOCOL — .env.development targets
+# the unauthenticated PLAINTEXT listener, so this is a no-op locally.
+if os.environ.get("KAFKA_SECURITY_PROTOCOL"):
+    producer_config.update({
+        "security.protocol": os.environ["KAFKA_SECURITY_PROTOCOL"],
+        "sasl.mechanisms": os.environ["KAFKA_SASL_MECHANISM"],
+        "sasl.username": os.environ["KAFKA_SASL_USERNAME"],
+        "sasl.password": os.environ["KAFKA_SASL_PASSWORD"],
+    })
+
 producer = Producer(producer_config)
 
 _shutdown = False

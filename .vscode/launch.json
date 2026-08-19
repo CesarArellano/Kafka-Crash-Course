@@ -1,0 +1,53 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Basics: producer (development)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/producer.py",
+            "envFile": "${workspaceFolder}/.env.development",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Basics: consumer (development)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tracker-consumer.py",
+            "envFile": "${workspaceFolder}/.env.development",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Production example: producer (development broker)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/production/producer.py",
+            "envFile": "${workspaceFolder}/.env.development",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Production example: consumer (development broker)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/production/consumer.py",
+            "envFile": "${workspaceFolder}/.env.development",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Production example: producer (production, SASL)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/production/producer.py",
+            "envFile": "${workspaceFolder}/.env.production",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Production example: consumer (production, SASL)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/production/consumer.py",
+            "envFile": "${workspaceFolder}/.env.production",
+            "console": "integratedTerminal"
+        }
+    ]
+}

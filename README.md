@@ -14,12 +14,19 @@ The scenario is simple on purpose — an "orders" event stream, like the one tha
 
 ```
 .
-├── docker-compose.yaml       # Single-broker Kafka cluster (KRaft mode)
-├── producer.py                # Basics: publish one order event
-├── tracker-consumer.py        # Basics: consume and print order events
+├── docker-compose.yaml            # Single-broker Kafka cluster (KRaft mode)
+├── producer.py                     # Basics: publish one order event
+├── tracker-consumer.py             # Basics: consume and print order events
 ├── production/
-│   ├── producer.py            # Same flow, hardened for production use
-│   └── consumer.py            # Same flow, hardened for production use
+│   ├── producer.py                 # Same flow, hardened for production use
+│   └── consumer.py                 # Same flow, hardened for production use
+├── kafka-config/
+│   └── kafka_server_jaas.conf      # Enables SCRAM on the broker (no secrets in it)
+├── scripts/
+│   └── generate-production-credentials.sh  # Creates a SCRAM user + fills .env.production
+├── .env.development.example        # Template: copy to .env.development
+├── .env.production.example         # Template: copy to .env.production
+├── .vscode/launch.json              # Run/debug configs for both environments
 └── main.py
 ```
 
@@ -62,6 +69,46 @@ Run the production pair the same way:
 python production/consumer.py
 python production/producer.py
 ```
+
+## Development vs. production environment
+
+The broker exposes two listeners so `production/producer.py` and `production/consumer.py`
+can run unmodified against either one — only the config changes:
+
+| | `localhost:9092` (dev) | `localhost:9094` (prod) |
+|---|---|---|
+| Protocol | `PLAINTEXT` | `SASL_PLAINTEXT` (`SCRAM-SHA-256`) |
+| Used by | `producer.py`, `tracker-consumer.py`, and the production pair when iterating locally | The production pair, to exercise the real authenticated path |
+
+Which one gets used is controlled by `APP_ENV` (`development` by default), which
+picks between two gitignored env files:
+
+```bash
+# One-time setup
+cp .env.development.example .env.development
+./scripts/generate-production-credentials.sh   # creates .env.production with a
+                                                 # freshly generated SCRAM password
+
+# Run against the dev (unauthenticated) listener
+APP_ENV=development python production/producer.py
+
+# Run against the prod (SASL/SCRAM) listener
+APP_ENV=production python production/producer.py
+```
+
+`.env.development.example` and `.env.production.example` are committed as templates;
+the real `.env.*` files are gitignored since `.env.production` ends up holding a
+generated password. Re-run `generate-production-credentials.sh` any time to rotate it —
+it updates the broker and the env file together.
+
+In VS Code, `.vscode/launch.json` provides matching run/debug configurations (Run and
+Debug panel) for both scripts against both environments, so you don't need to export
+`APP_ENV` by hand while working in the editor.
+
+**Scope note:** this sets up real broker-side authentication (SCRAM) so the production
+example isn't wide open like the dev listener. A real production deployment would also
+add TLS (`SASL_SSL`) and topic/group-level ACLs — both are natural next steps but outside
+what a local crash-course broker needs to demonstrate the pattern.
 
 ## Useful Kafka CLI commands
 

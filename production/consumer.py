@@ -8,7 +8,16 @@ import json
 import logging
 import os
 import signal
+from pathlib import Path
+
 from confluent_kafka import Consumer, Producer
+from dotenv import load_dotenv
+
+# APP_ENV picks which .env file to load — see .env.development.example and
+# .env.production.example. .env.production carries real SASL credentials, so
+# it's gitignored; run scripts/generate-production-credentials.sh to create it.
+APP_ENV = os.environ.get("APP_ENV", "development")
+load_dotenv(Path(__file__).resolve().parent.parent / f".env.{APP_ENV}")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("orders-consumer")
@@ -25,10 +34,25 @@ consumer_config = {
     "enable.auto.commit": False,
 }
 
+# Only .env.production sets KAFKA_SECURITY_PROTOCOL — .env.development targets
+# the unauthenticated PLAINTEXT listener, so this is a no-op locally.
+if os.environ.get("KAFKA_SECURITY_PROTOCOL"):
+    consumer_config.update({
+        "security.protocol": os.environ["KAFKA_SECURITY_PROTOCOL"],
+        "sasl.mechanisms": os.environ["KAFKA_SASL_MECHANISM"],
+        "sasl.username": os.environ["KAFKA_SASL_USERNAME"],
+        "sasl.password": os.environ["KAFKA_SASL_PASSWORD"],
+    })
+
 consumer = Consumer(consumer_config)
 # Minimal producer just for routing poison messages to the DLQ; production/producer.py
-# already covers the settings that matter for a "real" producer.
-dlq_producer = Producer({"bootstrap.servers": consumer_config["bootstrap.servers"]})
+# already covers the settings that matter for a "real" producer. It shares the
+# same bootstrap/SASL settings as the consumer since it talks to the same broker.
+dlq_producer = Producer({
+    key: value
+    for key, value in consumer_config.items()
+    if key in {"bootstrap.servers", "security.protocol", "sasl.mechanisms", "sasl.username", "sasl.password"}
+})
 
 _shutdown = False
 
